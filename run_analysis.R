@@ -1,0 +1,82 @@
+# download and read files
+
+fileUrl <- "http://archive.ics.uci.edu/ml/machine-learning-databases/00240/UCI%20HAR%20Dataset.zip"
+download.file(fileUrl, destfile = "./Data2/UCI%20HAR%20Dataset.zip", method = "curl")
+unzip("./Data2/UCI%20HAR%20Dataset.zip", exdir = "./Data2")
+feat <- read.csv("./Data2/UCI_HAR_Dataset/features.txt", sep = "", header = FALSE)
+library(dplyr)
+library(tidyr)
+library(readr)
+features <- tbl_df(feat)
+colnames(features) <- c("feature_number", "feature_name")
+activity_lables <- read.csv("./Data2/UCI_HAR_Dataset/activity_labels.txt", sep = "", header = FALSE)
+activity_lables <- tbl_df(activity_lables)
+colnames(activity_lables) <- c("activity_number", "activity_label")
+subject_train <- read.csv("./Data2/UCI_HAR_Dataset/train/subject_train.txt", sep = "", header = FALSE)
+subject_train <- tbl_df(subject_train)
+colnames(subject_train) <- c("subject_train")
+y_train <- read.csv("./Data2/UCI_HAR_Dataset/train/y_train.txt", sep = "", header = FALSE)
+y_train <- tbl_df(y_train)
+colnames(y_train) <- c("activity_number")
+x_train <- read.csv("./Data2/UCI_HAR_Dataset/train/x_train.txt", sep = "", header = FALSE)
+x_train <- tbl_df(x_train)
+colnames(x_train) <- features$feature_number
+subject_test <- read.csv("./Data2/UCI_HAR_Dataset/test/subject_test.txt", sep = "", header = FALSE)
+subject_test <- tbl_df(subject_test)
+colnames(subject_test) <- c("subject_test")
+y_test <- read.csv("./Data2/UCI_HAR_Dataset/test/y_test.txt", sep = "", header = FALSE)
+y_test <- tbl_df(y_test)
+colnames(y_test) <- c("activity_number")
+x_test <- read.csv("./Data2/UCI_HAR_Dataset/test/x_test.txt", sep = "", header = FALSE)
+x_test <- tbl_df(x_test)
+colnames(x_test) <- features$feature_number
+
+#merge training and test sets to create one data set
+y_train <- mutate(y_train, activity_label = factor(y_train$activity_number, levels = c(1, 2, 3, 4, 5, 6), labels = c("walking", "walking_upstairs", "walking_downstairs", "sitting", "standing", "laying")))
+y_test <- mutate(y_test, activity_label = factor(y_test$activity_number, levels = c(1, 2, 3, 4, 5, 6), labels = c("walking", "walking_upstairs", "walking_downstairs", "sitting", "standing", "laying")))
+test <- mutate(subject_test, "activity" = y_test$activity_label)
+test2 <- mutate(x_test, "subject" = test$subject_test, "activity" = test$activity)
+test2 <- select(test2, "subject", "activity", 1:561)
+colnames(test2) <- c("subject", "activity", features$feature_name)
+
+train <- mutate(subject_train, "activity" = y_train$activity_label)
+train2 <- mutate(x_train, "subject" = train$subject_train, "activity" = train$activity)
+train2 <- select(train2, "subject", "activity", 1:561)
+colnames(train2) <- c("subject", "activity", features$feature_name)
+
+#extracts only measurements on the mean and standard deviation for each measurement
+testntrain <- bind_rows(test2,train2)
+meanstd <- select(testntrain, 1, 2, grep("mean|std", names(testntrain), ignore.case = TRUE))
+names(meanstd) <- gsub("-", "_", names(meanstd))
+names(meanstd) <- gsub("\\)", "", names(meanstd))
+names(meanstd) <- gsub("\\(", "", names(meanstd))
+names(meanstd) <- gsub("^t|_t", "time_", names(meanstd))
+names(meanstd) <- gsub("^f", "frequency_", names(meanstd))
+names(meanstd) <- gsub("Mag", "_magnitude", names(meanstd))
+names(meanstd) <- gsub("angle", "angle_", names(meanstd))
+names(meanstd) <- gsub("_t", "_time", names(meanstd))
+names(meanstd) <- gsub("\\,", "", names(meanstd))
+names(meanstd) <- gsub("BodyBody", "body", names(meanstd))
+names(meanstd) <- gsub("time[Bb]ody", "time_body", names(meanstd))
+names(meanstd) <- gsub("JerkMean", "jerk_mean", names(meanstd))
+names(meanstd) <- gsub("[Gg]ravity[Mm]ean", "gravity_mean", names(meanstd))
+names(meanstd) <- gsub("X[Gg]ravity", "x_gravity", names(meanstd))
+names(meanstd) <- gsub("Y[Gg]ravity", "y_gravity", names(meanstd))
+names(meanstd) <- gsub("Z[Gg]ravity", "z_gravity", names(meanstd))
+names(meanstd) <- gsub("Acc", "_acceleration", names(meanstd))
+names(meanstd) <- gsub("Gyro", "_gyroscope", names(meanstd))
+names(meanstd) <- gsub("Jerk", "_jerk", names(meanstd))
+names(meanstd) <- tolower(names(meanstd))
+names(meanstd) <- gsub("accelerationmean", "acceleration_mean", names(meanstd))
+names(meanstd) <- gsub("accelerationjerk", "acceleration_jerk", names(meanstd))
+names(meanstd) <- gsub("gyroscopemean", "gyroscope_mean", names(meanstd))
+names(meanstd) <- gsub("gyroscopejerk", "gyroscope_jerk", names(meanstd))
+View(meanstd)
+
+# from meanstd creates a  second, independent tidy data set with the average of 
+#each variable for each activity and each subject.
+avg_data <- meanstd %>% group_by(activity, subject) %>% summarize_all(mean)
+View(avg_data)
+
+# create the file for submission
+write.table(avg_data, file = "./Project3TBC/avg_data_file.txt", sep = ",", row.names = FALSE)
