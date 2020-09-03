@@ -78,5 +78,5 @@ View(meanstd)
 avg_data <- meanstd %>% group_by(activity, subject) %>% summarize_all(mean)
 View(avg_data)
 
-# create the file for submission
+# create the file for submission (AssignmentC03W04)
 write.table(avg_data, file = "./Project3TBC/avg_data_file.txt", sep = ",", row.names = FALSE)
